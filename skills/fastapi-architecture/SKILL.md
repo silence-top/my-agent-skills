@@ -1,5 +1,5 @@
 ---
-name: fastapi-best-practices
+name: fastapi-architecture
 version: 2026.2.0
 description: >-
   Production-grade FastAPI architecture guidelines for AI coding agents.
