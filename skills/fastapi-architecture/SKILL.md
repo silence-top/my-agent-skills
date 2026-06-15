@@ -1,11 +1,15 @@
 ---
 name: fastapi-best-practices
+version: 2026.2.0
 description: >-
   Production-grade FastAPI architecture guidelines for AI coding agents.
   Covers Python 3.12, FastAPI 0.115+, Pydantic 2.11+, SQLAlchemy 2.0+.
   Use when creating, modifying, reviewing, or refactoring FastAPI projects,
   REST APIs, async Python web services, or when reviewing agent-generated
   FastAPI code for anti-patterns.
+activation_triggers:
+  files: ["*.py", "alembic.ini", "pyproject.toml"]
+  dependencies: ["fastapi", "sqlalchemy"]
 ---
 
 # FastAPI Best Practices for AI Agents (2026 Edition)
@@ -276,15 +280,32 @@ async def add_request_id(request: Request, call_next):
 ## Testing
 
 ```python
+# src/tests/conftest.py
 import pytest
-from httpx import AsyncClient, ASGITransport
-from src.main import app
+from typing import AsyncGenerator
+from testcontainers.postgres import PostgresContainer
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from src.database import Base
 
-@pytest.fixture
-async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+@pytest.fixture(scope="session")
+def anyio_backend() -> str: return "asyncio"
+
+@pytest.fixture(scope="session")
+async def test_db_engine():
+    with PostgresContainer("postgres:16-alpine") as postgres:
+        dsn = postgres.get_connection_url().replace("postgresql://", "postgresql+asyncpg://")
+        engine = create_async_engine(dsn, echo=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        yield engine
+        await engine.dispose()
+
+@pytest.fixture(scope="function")
+async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession, None]:
+    async_session = async_sessionmaker(test_db_engine, expire_on_commit=False, class_=AsyncSession)
+    async with async_session() as session:
+        yield session
+        await session.rollback()
 ```
 
 Use `app.dependency_overrides` for fakes. Prefer real DBs (testcontainers) over mocks.
