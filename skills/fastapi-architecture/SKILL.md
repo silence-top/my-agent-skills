@@ -1,362 +1,221 @@
 ---
 name: fastapi-architecture
-version: 2026.2.0
 description: >-
-  Production-grade FastAPI architecture guidelines for AI coding agents.
+  Pragmatic FastAPI architecture guardrails for AI coding agents.
   Covers Python 3.12, FastAPI 0.115+, Pydantic 2.11+, SQLAlchemy 2.0+.
   Use when creating, modifying, reviewing, or refactoring FastAPI projects,
-  REST APIs, async Python web services, or when reviewing agent-generated
-  FastAPI code for anti-patterns.
-activation_triggers:
-  files: ["*.py", "alembic.ini", "pyproject.toml"]
-  dependencies: ["fastapi", "sqlalchemy"]
+  REST APIs, async Python services, or reviewing agent-generated code for anti-patterns.
 ---
 
-# FastAPI Best Practices for AI Agents (2026 Edition)
+# FastAPI 实用主义架构守护者
 
-You are an expert FastAPI architect. When creating, modifying, or reviewing FastAPI code, enforce the patterns below. Prefer conditional guidance over absolutes — document exceptions when deviating.
+You are a pragmatic Python architect. Enforce the rules below when creating, modifying, or reviewing FastAPI code. Prefer conditional guidance over absolutes — but the **red lines are non-negotiable**.
 
-## Compatibility Matrix
+## Version Pin
 
-| Dependency | Minimum | Notes |
+| Dependency | Minimum | Must-use API |
 |---|---:|---|
-| **Python** | **3.12** | Use `X \| Y` unions, `list[T]`, PEP 695 generics |
-| **FastAPI** | **0.115** | `lifespan`, `Annotated`, modern docs |
-| **Pydantic** | **2.11** | `field_serializer`, `PlainSerializer`, `pydantic-settings` |
-| **SQLAlchemy** | **2.0** | Async: `AsyncSession`, `async_sessionmaker` |
-| **httpx** | **0.27** | `AsyncClient` + `ASGITransport` for tests |
-| **Alembic** | **1.13** | Async-aware migrations |
-| **PyJWT** | Recommended | `import jwt`; avoid `python-jose` |
-| **ruff** | Recommended | Linter + formatter |
+| **Python** | **3.12** | `X \| Y` unions, `list[T]`, PEP 695 |
+| **FastAPI** | **0.115** | `lifespan`, `Annotated` DI |
+| **Pydantic** | **2.11** | `field_serializer`, `ConfigDict`, `pydantic-settings` |
+| **SQLAlchemy** | **2.0** | `AsyncSession`, `async_sessionmaker` |
+| **httpx** | **0.27** | `AsyncClient` + `ASGITransport` |
+| **Alembic** | **1.13** | Async template |
+| **PyJWT** | Recommended | `import jwt` — avoid `python-jose` |
 
 ## Core Principles
 
-1. **Separation of concerns**: Router → Service → Repository → Database. Keep routers thin.
-2. **Domain-first organization** for medium/large projects; layer-first acceptable for small projects.
-3. **Observability by default**: structured JSON logs, `request_id`, metrics, tracing.
-4. **Test against real infrastructure**: use testcontainers or ephemeral databases for integration tests.
-5. **Document deviations**: add rationale in PR when deviating from these guidelines.
+1. **Separation of concerns**: Router → Service → Repository. Routers are thin.
+2. **Async-first, but not async-only**: use the decision table below.
+3. **Guard clauses over nesting**: early `raise` / `return`; happy path stays at outer scope.
+4. **No over-abstraction**: no ABC/Interface for the sake of mocking, no GenericRepository.
+5. **Domain exceptions + global handler**: Service throws domain errors; `app.exception_handler` converts to HTTP.
+6. **ORM never leaks past Service**: SQLAlchemy models stop at Service boundary; Pydantic schemas are the public contract.
+7. **One `BaseSettings` per domain**: no god-config class.
 
-## Project Structure
+## Three-Layer Architecture
 
 ```
-src/
-├── api/
-│   ├── v1/
-│   └── v2/
-├── auth/                  # Domain package (example)
-│   ├── router.py          # HTTP mapping only — SLIM
-│   ├── schemas.py         # Pydantic I/O contracts
-│   ├── models.py          # SQLAlchemy ORM
-│   ├── service.py         # Business logic & transactions
-│   ├── repository.py      # SQL generation & persistence
-│   └── dependencies.py    # DI providers
-├── posts/                 # Another domain
-├── config/
-│   └── settings.py
-├── database.py            # Session factory
-├── main.py                # App bootstrap & lifespan
-└── tests/
+[Router: HTTP/DTO only] → [Service: Business logic] → [Repository: DB/IO only]
 ```
 
-**Rules**: Use explicit module imports (`from src.auth import service as auth_service`). Keep domain packages self-contained.
+### Router — "Convey, don't think"
 
-## Lifespan (Resource Management)
+- **Only**: path definition, Pydantic validation, call Service, declare `response_model` + `status_code`.
+- **Red line**: NO SQL, NO `db.session`, NO business `if-else`, NO `try/except` on domain errors (let global handler catch them).
+- **DI style**: `Annotated[UserService, Depends(get_user_service)]`.
 
-Use `lifespan` (`asynccontextmanager`) for global resources; store singletons on `app.state`.
+### Service — "The business brain"
 
-```python
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from httpx import AsyncClient
+- **Only**: business logic, compose Repos, throw domain exceptions, own transaction boundaries (`async with session.begin()`).
+- **Red line**: NO `HTTPException`, NO `Request`/`Response` objects, NO SQLAlchemy model in return types.
+- **Mocking**: use `unittest.mock` or `dependency_overrides`. **Never** write an ABC just for mocking.
+- **Simple CRUD**: if a method is pure pass-through with zero logic, the Service layer is still the correct place — but keep it a one-liner. Do NOT bypass Service from Router.
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.http_client = AsyncClient(timeout=10.0)
-    yield
-    await app.state.http_client.aclose()
+### Repository — "The only I/O gate"
 
-app = FastAPI(lifespan=lifespan)
-```
+- **Only**: SQLAlchemy async queries. Return ORM models or primitive types.
+- **Red line**: NO `GenericRepository[T]`. Each entity gets a concrete class with business-specific methods (e.g. `get_active_by_email`, not `filter_by(**kwargs)`).
+- **After `session.add()`**: always `await session.flush()` before returning, so auto-generated IDs are populated.
+
+## Async Decision Table
+
+| Scenario | Use |
+|---|---|
+| `await`-able non-blocking I/O | `async def` |
+| Blocking I/O (no async client exists) | `def` (FastAPI runs in threadpool) |
+| Mix of both | `async def` + `run_in_threadpool` for blocking part |
+| CPU-bound (>100ms) | Offload to worker (Celery/Arq) |
+
+**Red line**: Never call `requests`, `time.sleep`, sync DB drivers, or `open()` inside `async def`.
 
 ## Settings
 
-Split by domain using `pydantic-settings`; expose via cached getter.
+One `pydantic-settings` `BaseSettings` per domain, exposed via `@lru_cache()` getter. Never import-time instantiation.
 
 ```python
-from functools import lru_cache
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
 class AuthSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AUTH_", extra="ignore")
     JWT_SECRET: str
     JWT_ALG: str = "HS256"
-    JWT_EXP_MINUTES: int = 5
 
 @lru_cache()
 def get_auth_settings() -> AuthSettings:
     return AuthSettings()
 ```
 
-## API Versioning
+## Error Handling
 
-URL path versioning: `/api/v1/`, `/api/v2/`. Breaking changes → new version. Shared logic → `service/` or `logic/`.
+Service throws domain exceptions; global handler converts to RFC 9457 JSON:
 
 ```python
-# api/v1/__init__.py
-from fastapi import APIRouter
-from api.v1.users import users_router
+# exceptions.py — domain errors, no HTTP knowledge
+class DomainError(Exception): ...
+class UserNotFoundError(DomainError): ...
+class UserAlreadyExistsError(DomainError): ...
 
-v1_router = APIRouter()
-v1_router.include_router(users_router, prefix="/users", tags=["Users v1"])
-
-# main.py
-app.include_router(v1_router, prefix="/api/v1")
-app.include_router(v2_router, prefix="/api/v2")
+# main.py — global handler
+@app.exception_handler(DomainError)
+async def domain_error_handler(request: Request, exc: DomainError):
+    return JSONResponse(status_code=exc.status_code, content={...})
 ```
 
-Deprecation: `APIRouter(deprecated=True)` + optional `Deprecation`/`Sunset` headers.
+**Red line**: NO `HTTPException` in Service layer. NO broad `except Exception:` in Router.
 
-## Router
+## Background Jobs
 
-Router handles request/response, validation, and DI **only**. Move business logic to Service.
+| Tool | When |
+|---|---|
+| `BackgroundTasks` | Fire-and-forget, <1s, non-critical (e.g. welcome email) |
+| Celery/Arq/RQ | Retries, durability, scheduling, or any task you'd page on |
 
-```python
-from fastapi import APIRouter, status
-from .schemas import ItemCreate, ItemResponse
+## Testing
 
-router = APIRouter()
+- Use `httpx.AsyncClient` + `ASGITransport` — NOT `TestClient` or `async_asgi_testclient`.
+- Use `app.dependency_overrides[dep] = fake` for auth/external swaps.
+- Prefer real DB (testcontainers) over mocks for integration tests.
 
-@router.post(
-    "/items",
-    response_model=ItemResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create an item",
-)
-async def create_item(payload: ItemCreate):
-    return await service.create_item(payload)
-```
+## Anti-Pattern Red Lines
 
-## Dependency Injection
+Before outputting code, verify NONE of these exist:
 
-Prefer `Annotated[T, Depends(...)]` for clarity.
+| Anti-pattern | Fix |
+|---|---|
+| `requests.get()` in `async def` | `httpx.AsyncClient` |
+| `time.sleep` / `open()` / sync DB in `async def` | `asyncio.sleep` / `aiofiles` / `AsyncSession` |
+| `from jose import jwt` | `PyJWT` (`import jwt`) |
+| `ConfigDict(json_encoders=...)` | `@field_serializer` |
+| `Field(ge=18, default=None)` | Required or optional — pick one |
+| Broad `except Exception:` | Catch specific exceptions |
+| `GenericRepository[T]` | Concrete repo with business methods |
+| ABC for mocking | `unittest.mock` or `dependency_overrides` |
+| `HTTPException` in Service | Domain exception + global handler |
+| ORM model in Router return | Convert to Pydantic schema at Service boundary |
+| `BackgroundTasks` for critical work | Celery/Arq/RQ |
+| Breaking change in existing API version | Fork to `/api/v2/` |
+| `db.commit()` in Router | `session.begin()` in Service |
+| One global `BaseSettings` | Per-domain settings class |
+| `class Config:` (Pydantic v1) | `model_config = ConfigDict(...)` |
 
-```python
-from typing import Annotated
-from fastapi import Depends
+For the complete anti-pattern matrix with severity levels, see [anti-patterns.md](reference/anti-patterns.md).
 
-PostDep = Annotated[dict, Depends(valid_post_id)]
+## Golden Master Code
 
-@router.get("/posts/{post_id}")
-async def get_post(post: PostDep):
-    return post
-```
-
-## Service Layer
-
-Encapsulate business logic, transactions, idempotency. Do NOT handle HTTP concerns.
-
-```python
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self.repo = repo
-
-    async def create_user(self, data: UserCreate) -> User:
-        return await self.repo.insert(data)
-```
-
-## Repository Layer
-
-Data access only: queries, inserts, updates, deletes.
+When generating CRUD or business flow, strictly follow this structure:
 
 ```python
+# --- schemas.py ---
+from pydantic import BaseModel, ConfigDict, EmailStr
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    model_config = ConfigDict(from_attributes=True)
+
+# --- exceptions.py ---
+class DomainError(Exception):
+    status_code: int = 400
+
+class UserAlreadyExistsError(DomainError):
+    status_code: int = 409
+
+# --- repositories.py ---
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from .models import User
+from .schemas import UserCreate
+
 class UserRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def fetch_user_row(self, user_id: UUID) -> dict:
-        result = await self.session.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
+    async def get_by_email(self, email: str) -> User | None:
+        result = await self.session.execute(select(User).where(User.email == email))
+        return result.scalars().first()
+
+    async def create(self, user_in: UserCreate, hashed_pw: str) -> User:
+        user = User(email=user_in.email, hashed_password=hashed_pw)
+        self.session.add(user)
+        await self.session.flush()        # populate auto-generated id
+        return user
+
+# --- services.py ---
+from .repositories import UserRepository
+from .schemas import UserCreate, UserResponse
+from .exceptions import UserAlreadyExistsError
+
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self.repo = repo
+
+    async def register(self, user_in: UserCreate) -> UserResponse:
+        if await self.repo.get_by_email(user_in.email):    # guard clause
+            raise UserAlreadyExistsError("Email already registered")
+        user = await self.repo.create(user_in, hash_pw(user_in.password))
+        return UserResponse.model_validate(user)            # ORM → schema at boundary
+
+# --- routers.py ---
+from typing import Annotated
+from fastapi import APIRouter, Depends, status
+from .schemas import UserCreate, UserResponse
+from .services import UserService
+from .dependencies import get_user_service
+
+router = APIRouter(prefix="/users", tags=["Users"])
+
+@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    user_in: UserCreate,
+    service: Annotated[UserService, Depends(get_user_service)],
+):
+    return await service.register(user_in)     # no try/except — global handler catches it
 ```
-
-## Database (SQLAlchemy 2.0 Async)
-
-```python
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-engine = create_async_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
-SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
-
-async def get_db() -> AsyncSession:
-    async with SessionFactory() as session:
-        yield session
-```
-
-Naming: `lower_case_snake`, singular table names, consistent FK names.
-
-## Transactions (Unit of Work)
-
-Place transaction boundaries in Service or UoW layer:
-
-```python
-async with session.begin():
-    await repo.insert(...)
-    await repo.update(...)
-```
-
-## Async Rules
-
-| Scenario | Use |
-|---|---|
-| `await`-able non-blocking I/O | `async def` |
-| Blocking I/O (no async client) | `def` (threadpool) |
-| Mix of both | `async def` + `run_in_threadpool` |
-| CPU-bound work | Offload to worker (Celery/Arq) |
-
-Never call blocking libs (`requests`, `time.sleep`, sync DB drivers) inside `async def`.
-
-## Authentication (JWT)
-
-```python
-import jwt
-from jwt.exceptions import InvalidTokenError
-
-def decode_token(token: str) -> dict:
-    try:
-        return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALG])
-    except InvalidTokenError as exc:
-        raise InvalidCredentials() from exc
-```
-
-## HTTP Client
-
-Create ONE `AsyncClient` in `lifespan`; reuse across requests. Never create per-request clients.
-
-```python
-client = app.state.http_client
-resp = await client.get("https://api.example.com")
-```
-
-## Background Jobs
-
-| Type | When |
-|---|---|
-| `BackgroundTasks` | Short, fire-and-forget, non-critical (<1s) |
-| Celery/Arq/RQ | Retries, durability, scheduling, critical tasks |
-
-## Error Handling (RFC 9457)
-
-```python
-class APIError(Exception):
-    def __init__(self, type_: str, title: str, status_code: int = 400, detail: str | None = None):
-        self.type = type_
-        self.title = title
-        self.status_code = status_code
-        self.detail = detail
-
-@app.exception_handler(APIError)
-async def api_error_handler(request: Request, exc: APIError):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"type": exc.type, "title": exc.title, "status": exc.status_code,
-                 "detail": exc.detail, "instance": str(request.url)},
-    )
-```
-
-## Logging
-
-Structured JSON logs with `request_id`. Add middleware:
-
-```python
-@app.middleware("http")
-async def add_request_id(request: Request, call_next):
-    request_id = str(uuid4())
-    request.state.request_id = request_id
-    response = await call_next(request)
-    response.headers["X-Request-Id"] = request_id
-    return response
-```
-
-## Testing
-
-```python
-# src/tests/conftest.py
-import pytest
-from typing import AsyncGenerator
-from testcontainers.postgres import PostgresContainer
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from src.database import Base
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str: return "asyncio"
-
-@pytest.fixture(scope="session")
-async def test_db_engine():
-    with PostgresContainer("postgres:16-alpine") as postgres:
-        dsn = postgres.get_connection_url().replace("postgresql://", "postgresql+asyncpg://")
-        engine = create_async_engine(dsn, echo=False)
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        yield engine
-        await engine.dispose()
-
-@pytest.fixture(scope="function")
-async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession, None]:
-    async_session = async_sessionmaker(test_db_engine, expire_on_commit=False, class_=AsyncSession)
-    async with async_session() as session:
-        yield session
-        await session.rollback()
-```
-
-Use `app.dependency_overrides` for fakes. Prefer real DBs (testcontainers) over mocks.
-
-## Linting
-
-`ruff check --fix` + `ruff format` in pre-commit and CI. Type checking with `mypy` or `pyright`.
-
-## Anti-Pattern Quick Check
-
-Before outputting code, verify against this list:
-
-| Anti-pattern | Fix |
-|---|---|
-| `requests.get()` in `async def` | Use `httpx.AsyncClient` |
-| `time.sleep` in `async def` | Use `asyncio.sleep` |
-| `from jose import jwt` | Use `PyJWT` (`import jwt`) |
-| `async_asgi_testclient` | Use `httpx.AsyncClient` + `ASGITransport` |
-| `ConfigDict(json_encoders=...)` | Use `@field_serializer` |
-| `Field(ge=18, default=None)` | Make required or optional explicitly |
-| Broad `except Exception:` | Catch specific exceptions |
-| `BackgroundTasks` for critical work | Use Celery/Arq/RQ |
-| Sync ORM in `async def` | Use `AsyncSession` |
-| Breaking change in existing version | Fork to `/api/v2/` |
-
-For the complete anti-pattern table with severity and impact, see [anti-patterns.md](reference/anti-patterns.md).
-
-## Quick Reference
-
-| Scenario | Solution |
-|---|---|
-| Non-blocking I/O | `async def` + `await` |
-| Blocking I/O | `def` (threadpool) |
-| Sync lib in async route | `await run_in_threadpool(fn, *args)` |
-| CPU-intensive | Celery/Arq worker |
-| Request validation vs DB | Dependency that loads + validates |
-| DI modern style | `Annotated[T, Depends(...)]` |
-| Per-domain config | One `BaseSettings` per domain |
-| Custom datetime serialization | `@field_serializer` |
-| Fire-and-forget task | `BackgroundTasks` |
-| Reliable/heavy task | Celery/Arq/RQ |
-| JWT decode | `PyJWT` |
-| Async DB | SQLAlchemy 2.0 `AsyncSession` |
-| Test client | `httpx.AsyncClient` + `ASGITransport` |
-| Swap dep in tests | `app.dependency_overrides[dep] = fake` |
-| API versioning | URL path (`/api/v1/`, `/api/v2/`) |
-| Shared logic across versions | `logic/` or `service/` |
 
 ## Additional Resources
 
-- For detailed architecture patterns (lifespan, settings, DI, service/repository layers), see [architecture.md](reference/architecture.md)
-- For database patterns, transactions, async rules, and migrations, see [database.md](reference/database.md)
-- For advanced topics (Redis, WebSocket, pagination, file upload, streaming, docs hiding), see [advanced.md](reference/advanced.md)
-- For the complete anti-pattern matrix with severity and code fixes, see [anti-patterns.md](reference/anti-patterns.md)
+- For full patterns (lifespan, settings, DI, DB session, testing, versioning, Redis, WebSocket, pagination, etc.), see [reference.md](reference/reference.md)
+- For the complete anti-pattern matrix with severity, see [anti-patterns.md](reference/anti-patterns.md)
