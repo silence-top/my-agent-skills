@@ -19,6 +19,7 @@ Check every diff against this table before outputting code. Each entry is a real
 | 2 | `time.sleep()` in `async def` | **CRITICAL** | Halts all concurrent connections | `await asyncio.sleep()` |
 | 3 | Sync DB driver in `async def` | **CRITICAL** | Blocks loop; may deadlock pool under load | `AsyncSession` + `asyncpg`/`aiosqlite` |
 | 4 | Breaking change in existing API version | **CRITICAL** | Clients break silently with no migration path | Fork to `/api/v2/`, mark v1 `deprecated=True` |
+| 4b | Copying entire Service/Repo per API version | **HIGH** | Duplicates all logic; bug fixes applied N times | Isolate only changed logic via strategy/method/versioned-logic module |
 | 5 | `db.commit()` in Router | **HIGH** | Breaks transaction boundary discipline | `session.begin()` in Service |
 | 6 | Broad `except Exception:` | **HIGH** | Hides bugs, turns 500s into silent 200s | Catch specific exceptions |
 | 7 | `Field(ge=18, default=None)` | **HIGH** | Constraint contradicts default | Make required or optional — pick one |
@@ -28,7 +29,7 @@ Check every diff against this table before outputting code. Each entry is a real
 | 11 | `BackgroundTasks` for critical work | **HIGH** | No retry, no durability, dies with worker | Celery/Arq/RQ |
 | 12 | `open()` (sync I/O) in `async def` | **HIGH** | Blocks event loop | `aiofiles` |
 | 13 | Mutable default `Field(default=[])` | **HIGH** | State leakage across concurrent requests | `Field(default_factory=list)` |
-| 14 | Duplicating logic across API versions | **HIGH** | Bug fixes applied N times; easy to miss one | Shared logic in `service/` or `logic/` |
+| 14 | Duplicating logic across API versions | **HIGH** | Bug fixes applied N times; easy to miss one | Share unchanged logic; version only the changed part via strategy or `logic/v2/` |
 | 15 | `from jose import jwt` | **MEDIUM** | Unmaintained; CVE history | `PyJWT` (`import jwt`) |
 | 16 | `async_asgi_testclient` | **MEDIUM** | Unmaintained, incompatible with newer FastAPI | `httpx.AsyncClient` + `ASGITransport` |
 | 17 | ABC/Interface for mocking | **MEDIUM** | Over-abstraction in a dynamic language | `unittest.mock` or `dependency_overrides` |

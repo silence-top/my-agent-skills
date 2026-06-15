@@ -39,6 +39,50 @@ You are a pragmatic Python architect. Enforce the rules below when creating, mod
 [Router: HTTP/DTO only] → [Service: Business logic] → [Repository: DB/IO only]
 ```
 
+### Version Boundary
+
+When multiple API versions coexist, the version boundary determines which layers are versioned:
+
+```
+  Must version          Version on demand        Never version
+  ──────────           ──────────────           ─────────────
+  Router               Logic (only changed      Repository
+  Schema                parts)                  Models
+                                               Dependencies
+                                               Service (shared entry point)
+```
+
+```
+src/
+├── auth/                            # Domain
+│   ├── api/
+│   │   ├── v1/
+│   │   │   ├── router.py            # Must version
+│   │   │   └── schemas.py           # Must version
+│   │   └── v2/
+│   │       ├── router.py
+│   │       └── schemas.py
+│   ├── logic/                       # Version on demand
+│   │   ├── registration.py          # shared logic (default)
+│   │   └── v2/                      # only if v2 logic genuinely differs
+│   │       └── registration.py
+│   ├── service.py                   # Never version (shared entry point)
+│   ├── repository.py                # Never version
+│   ├── models.py                    # Never version
+│   ├── exceptions.py                # Never version
+│   └── dependencies.py              # Never version
+```
+
+When v2 needs different business logic, choose by degree of change:
+
+| Logic change degree | Pattern | Example |
+|---|---|---|
+| Small (add a step) | Method addition on shared Service | `create_order()` for v1, `create_order_v2()` for v2 |
+| Medium (different calculation) | Strategy injection via DI | Service accepts `PricingStrategy`; v1 injects `NoDiscount`, v2 injects `PercentDiscount` |
+| Large (entire flow differs) | Versioned `logic/` module | `logic/v2/registration.py`; Service delegates by version |
+
+**Red line**: Never copy the entire Service/Repository per version. Isolate only the part that changed.
+
 ### Router — "Convey, don't think"
 
 - **Only**: path definition, Pydantic validation, call Service, declare `response_model` + `status_code`.
@@ -132,7 +176,7 @@ Before outputting code, verify NONE of these exist:
 | `HTTPException` in Service | Domain exception + global handler |
 | ORM model in Router return | Convert to Pydantic schema at Service boundary |
 | `BackgroundTasks` for critical work | Celery/Arq/RQ |
-| Breaking change in existing API version | Fork to `/api/v2/` |
+| Copying entire Service/Repo per API version | Isolate only changed logic; keep shared parts in one place |
 | `db.commit()` in Router | `session.begin()` in Service |
 | One global `BaseSettings` | Per-domain settings class |
 | `class Config:` (Pydantic v1) | `model_config = ConfigDict(...)` |
