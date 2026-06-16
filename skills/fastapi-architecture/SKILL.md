@@ -1,15 +1,16 @@
 ---
 name: fastapi-architecture
 description: >-
-  Pragmatic FastAPI architecture guardrails for AI coding agents.
-  Covers Python 3.12, FastAPI 0.115+, Pydantic 2.11+, SQLAlchemy 2.0+.
-  Use when creating, modifying, reviewing, or refactoring FastAPI projects,
-  REST APIs, async Python services, or reviewing agent-generated code for anti-patterns.
+  Core FastAPI layer rules, async patterns, error handling, and golden master code
+  for AI coding agents. Covers Python 3.12, FastAPI 0.115+, Pydantic 2.11+,
+  SQLAlchemy 2.0+. Use when writing, modifying, or refactoring FastAPI route handlers,
+  services, repositories, or schemas. For project scaffolding use fastapi-project-layout.
+  For code review use fastapi-anti-patterns.
 ---
 
-# FastAPI 实用主义架构守护者
+# FastAPI Architecture — Core Rules
 
-You are a pragmatic Python architect. Enforce the rules below when creating, modifying, or reviewing FastAPI code. Prefer conditional guidance over absolutes — but the **red lines are non-negotiable**.
+Enforce these rules when creating or modifying FastAPI code. The **red lines are non-negotiable**.
 
 ## Version Pin
 
@@ -27,145 +28,29 @@ You are a pragmatic Python architect. Enforce the rules below when creating, mod
 
 1. **Separation of concerns**: Router → Service → Repository. Routers are thin.
 2. **Async-first, but not async-only**: use the decision table below.
-3. **Guard clauses over nesting**: early `raise` / `return`; happy path stays at outer scope.
-4. **No over-abstraction**: no ABC/Interface for the sake of mocking, no GenericRepository.
+3. **Guard clauses over nesting**: early `raise` / `return`; happy path at outer scope.
+4. **No over-abstraction**: no ABC for mocking, no GenericRepository.
 5. **Domain exceptions + global handler**: Service throws domain errors; `app.exception_handler` converts to HTTP.
 6. **ORM never leaks past Service**: SQLAlchemy models stop at Service boundary; Pydantic schemas are the public contract.
 7. **One `BaseSettings` per domain**: no god-config class.
 
-## Project Structure — Progressive Evolution
-
-Structure grows with project size. Do NOT start with 15 empty top-level directories.
-
-### Small (1–5 domains, <20 tables)
+## Three-Layer Rules
 
 ```
-src/
-├── api/
-│   └── v1/
-│       ├── auth.py          # router
-│       └── orders.py
-├── services/
-│   ├── auth_service.py
-│   └── order_service.py
-├── repositories/
-│   ├── user_repo.py
-│   └── order_repo.py
-├── schemas/
-│   ├── auth.py
-│   └── order.py
-├── models.py                # single file is fine
-├── exceptions.py            # single file is fine
-├── dependencies.py
-├── core/
-│   ├── config.py
-│   ├── db.py
-│   └── security.py
-├── middlewares/
-│   └── request_id.py
-├── database.py
-└── main.py
+[Router: HTTP/DTO only] → [Service: Business logic] → [Repository: DB/IO only]
 ```
-
-### Medium+ (5+ domains, 20+ tables)
-
-When any directory exceeds ~10 files, split by domain subdirectory:
-
-```
-src/
-├── api/
-│   ├── v1/
-│   │   ├── auth.py
-│   │   └── identity.py
-│   └── v2/
-│       └── auth.py
-├── services/
-│   ├── auth/
-│   │   └── auth_service.py
-│   └── identity/
-│       └── permission_service.py
-├── repositories/
-│   ├── auth/
-│   │   ├── user_repo.py
-│   │   └── role_repo.py
-│   └── identity/
-│       └── permission_repo.py
-├── models/
-│   ├── base.py
-│   ├── auth/
-│   │   ├── user.py
-│   │   └── role.py
-│   └── identity/
-│       └── permission.py
-├── schemas/
-│   ├── auth/
-│   │   ├── user.py
-│   │   └── token.py
-│   └── identity/
-│       └── permission.py
-├── exceptions/
-│   ├── base.py
-│   ├── auth.py
-│   └── identity.py
-├── core/
-│   ├── config.py
-│   ├── db.py
-│   ├── security.py
-│   ├── cache.py             # Redis abstraction
-│   └── logger.py
-├── middlewares/
-│   ├── request_id.py
-│   └── logging.py
-├── dependencies.py
-├── database.py
-└── main.py
-```
-
-### Version Boundary
-
-When multiple API versions coexist:
-
-```
-  Must version          Version on demand        Never version
-  ──────────           ──────────────           ─────────────
-  Router               Logic (only changed      Repository
-  Schema                parts)                  Models
-                                               Dependencies
-                                               Service (shared entry point)
-```
-
-When v2 needs different business logic, choose by degree of change:
-
-| Logic change degree | Pattern | Example |
-|---|---|---|
-| Small (add a step) | Method addition on shared Service | `create_order()` for v1, `create_order_v2()` for v2 |
-| Medium (different calculation) | Strategy injection via DI | Service accepts `PricingStrategy`; v1 injects `NoDiscount`, v2 injects `PercentDiscount` |
-| Large (entire flow differs) | Versioned `services/` submodule | `services/auth/v2/registration.py`; Service delegates by version |
-
-**Red line**: Never copy the entire Service/Repository per version. Isolate only the part that changed.
-
-### What NOT to create
-
-| Anti-pattern | Why |
-|---|---|
-| Top-level `utils/` | Becomes a junk drawer. Put pure functions close to their usage site. |
-| Top-level `constants/` | Enums and constants belong to their domain, not a centralized dump. |
-| Top-level `cache/` | Caching is a Service-layer concern. Use `core/cache.py` as a thin helper. |
-| Top-level `seed/` | Seeds are scripts. Put under `scripts/seed/`. |
-| Empty directories on day 1 | Create directories when you have files to put in them, not in anticipation. |
 
 ### Router — "Convey, don't think"
 
 - **Only**: path definition, Pydantic validation, call Service, declare `response_model` + `status_code`.
-- **Red line**: NO SQL, NO `db.session`, NO business `if-else`, NO `try/except` on domain errors (let global handler catch them).
-- **DI style**: `Annotated[UserService, Depends(get_user_service)]`.
+- **Red line**: NO SQL, NO `db.session`, NO business `if-else`, NO `try/except` on domain errors.
 
 ### Service — "The business brain"
 
 - **Only**: business logic, compose Repos, throw domain exceptions, own transaction boundaries (`async with session.begin()`).
 - **Red line**: NO `HTTPException`, NO `Request`/`Response` objects, NO SQLAlchemy model in return types.
-- **Mocking**: use `unittest.mock` or `dependency_overrides`. **Never** write an ABC just for mocking.
-- **Simple CRUD**: if a method is pure pass-through with zero logic, the Service layer is still the correct place — but keep it a one-liner. Do NOT bypass Service from Router.
+- **Mocking**: use `unittest.mock` or `dependency_overrides`. Never write an ABC just for mocking.
+- **Simple CRUD**: Service is still the correct place even for pass-through — but keep it a one-liner.
 
 ### Repository — "The only I/O gate"
 
@@ -188,71 +73,22 @@ When v2 needs different business logic, choose by degree of change:
 
 One `pydantic-settings` `BaseSettings` per domain, exposed via `@lru_cache()` getter. Never import-time instantiation.
 
-```python
-class AuthSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AUTH_", extra="ignore")
-    JWT_SECRET: str
-    JWT_ALG: str = "HS256"
-
-@lru_cache()
-def get_auth_settings() -> AuthSettings:
-    return AuthSettings()
-```
-
 ## Error Handling
 
-Service throws domain exceptions; global handler converts to RFC 9457 JSON:
-
-```python
-# exceptions.py — domain errors, no HTTP knowledge
-class DomainError(Exception): ...
-class UserNotFoundError(DomainError): ...
-class UserAlreadyExistsError(DomainError): ...
-
-# main.py — global handler
-@app.exception_handler(DomainError)
-async def domain_error_handler(request: Request, exc: DomainError):
-    return JSONResponse(status_code=exc.status_code, content={...})
-```
-
-**Red line**: NO `HTTPException` in Service layer. NO broad `except Exception:` in Router.
+Service throws domain exceptions; global handler converts to RFC 9457 JSON. NO `HTTPException` in Service. NO broad `except Exception:` in Router.
 
 ## Background Jobs
 
 | Tool | When |
 |---|---|
-| `BackgroundTasks` | Fire-and-forget, <1s, non-critical (e.g. welcome email) |
-| Celery/Arq/RQ | Retries, durability, scheduling, or any task you'd page on |
+| `BackgroundTasks` | Fire-and-forget, <1s, non-critical |
+| Celery/Arq/RQ | Retries, durability, scheduling, or anything you'd page on |
 
 ## Testing
 
 - Use `httpx.AsyncClient` + `ASGITransport` — NOT `TestClient` or `async_asgi_testclient`.
 - Use `app.dependency_overrides[dep] = fake` for auth/external swaps.
 - Prefer real DB (testcontainers) over mocks for integration tests.
-
-## Anti-Pattern Red Lines
-
-Before outputting code, verify NONE of these exist:
-
-| Anti-pattern | Fix |
-|---|---|
-| `requests.get()` in `async def` | `httpx.AsyncClient` |
-| `time.sleep` / `open()` / sync DB in `async def` | `asyncio.sleep` / `aiofiles` / `AsyncSession` |
-| `from jose import jwt` | `PyJWT` (`import jwt`) |
-| `ConfigDict(json_encoders=...)` | `@field_serializer` |
-| `Field(ge=18, default=None)` | Required or optional — pick one |
-| Broad `except Exception:` | Catch specific exceptions |
-| `GenericRepository[T]` | Concrete repo with business methods |
-| ABC for mocking | `unittest.mock` or `dependency_overrides` |
-| `HTTPException` in Service | Domain exception + global handler |
-| ORM model in Router return | Convert to Pydantic schema at Service boundary |
-| `BackgroundTasks` for critical work | Celery/Arq/RQ |
-| Copying entire Service/Repo per API version | Isolate only changed logic; keep shared parts in one place |
-| `db.commit()` in Router | `session.begin()` in Service |
-| One global `BaseSettings` | Per-domain settings class |
-| `class Config:` (Pydantic v1) | `model_config = ConfigDict(...)` |
-
-For the complete anti-pattern matrix with severity levels, see [anti-patterns.md](reference/anti-patterns.md).
 
 ## Golden Master Code
 
@@ -295,7 +131,7 @@ class UserRepository:
     async def create(self, user_in: UserCreate, hashed_pw: str) -> User:
         user = User(email=user_in.email, hashed_password=hashed_pw)
         self.session.add(user)
-        await self.session.flush()        # populate auto-generated id
+        await self.session.flush()
         return user
 
 # --- services.py ---
@@ -332,5 +168,6 @@ async def create_user(
 
 ## Additional Resources
 
-- For full patterns (lifespan, settings, DI, DB session, testing, versioning, Redis, WebSocket, pagination, etc.), see [reference.md](reference/reference.md)
-- For the complete anti-pattern matrix with severity, see [anti-patterns.md](reference/anti-patterns.md)
+- For full code patterns (lifespan, DI flow, DB session, testing, versioning, Redis, WebSocket, pagination), see [reference.md](reference/reference.md)
+- For project scaffolding and directory structure, use the `fastapi-project-layout` skill
+- For code review anti-patterns, use the `fastapi-anti-patterns` skill

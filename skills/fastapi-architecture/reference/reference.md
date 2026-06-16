@@ -1,106 +1,44 @@
 # Reference: Full Patterns
 
-This file contains complete code patterns that SKILL.md references by name but does not inline. Read this when you need the full implementation of a specific pattern.
+Patterns that SKILL.md references but does not inline. Read only when you need the full implementation of a specific pattern.
 
 ---
 
-## Lifespan & HTTP Client
+## Dependency Injection — Full Chain
 
-```python
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from httpx import AsyncClient
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.http_client = AsyncClient(timeout=10.0)
-    # app.state.redis = await create_redis()
-    yield
-    await app.state.http_client.aclose()
-    # await app.state.redis.close()
-
-def create_app() -> FastAPI:
-    app = FastAPI(lifespan=lifespan)
-    return app
-```
-
-**Why lifespan, not `on_event`**: Centralizes resource lifecycle. Consistent between tests and production. `@app.on_event("startup")` is deprecated.
-
----
-
-## Settings — Per-Domain
-
-```python
-from functools import lru_cache
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-class AppSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="APP_", extra="ignore")
-    DATABASE_URL: str
-
-class AuthSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AUTH_", extra="ignore")
-    JWT_SECRET: str
-    JWT_ALG: str = "HS256"
-    JWT_EXP_MINUTES: int = 5
-
-@lru_cache()
-def get_settings() -> AppSettings:
-    return AppSettings()
-
-@lru_cache()
-def get_auth_settings() -> AuthSettings:
-    return AuthSettings()
-```
-
-**Rules**: Avoid import-time instantiation in testable modules. Use secret managers (Vault, AWS SM) in production.
-
----
-
-## Dependency Injection — Full Flow
+Agent frequently gets multi-layer DI chains wrong. This is the correct pattern:
 
 ```python
 from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
-from .service import UserService
-from .repository import UserRepository
+from .service import OrderService
+from .repository import OrderRepository
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 DBDep = Annotated[AsyncSession, Depends(get_db)]
 
-def get_order_repo(db: DBDep) -> UserRepository:
-    return UserRepository(db)
+def get_order_repo(db: DBDep) -> OrderRepository:
+    return OrderRepository(db)
 
-def get_order_service(repo: Annotated[UserRepository, Depends(get_order_repo)]) -> UserService:
-    return UserService(repo)
+def get_order_service(repo: Annotated[OrderRepository, Depends(get_order_repo)]) -> OrderService:
+    return OrderService(repo)
 
-OrderServiceDep = Annotated[UserService, Depends(get_order_service)]
+OrderServiceDep = Annotated[OrderService, Depends(get_order_service)]
 
 @router.post("/", response_model=OrderOut, status_code=201)
 async def create_order(dto: OrderCreate, service: OrderServiceDep):
     return await service.create_order(dto)
 ```
 
-**Notes**: Dependencies are cached per request. Prefer `async def` deps to avoid threadpool overhead. Chain deps for reusable validation logic.
+**Notes**: Dependencies are cached per request. Prefer `async def` deps to avoid threadpool overhead.
 
 ---
 
-## Database Session (SQLAlchemy 2.0 Async)
+## Database Naming Conventions
 
-```python
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-engine = create_async_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
-SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
-
-async def get_db() -> AsyncSession:
-    async with SessionFactory() as session:
-        yield session
-```
-
-### Naming Conventions
+Agent won't guess this project-specific convention:
 
 ```python
 from sqlalchemy import MetaData
@@ -117,8 +55,6 @@ metadata = MetaData(naming_convention=POSTGRES_INDEXES_NAMING_CONVENTION)
 
 **Table conventions**: `lower_case_snake`, singular names (`user`, `post_like`), consistent FK names.
 
-**SQL-first vs Pydantic-second**: Prefer SQL joins/aggregation for performance. Use service-layer shaping when readability matters.
-
 ---
 
 ## Transactions (Unit of Work)
@@ -129,7 +65,7 @@ async with session.begin():
     await repo.insert(...)
     await repo.update(...)
 
-# UoW class
+# UoW class — for complex transaction management
 class UnitOfWork:
     def __init__(self, session_factory):
         self.session_factory = session_factory
@@ -147,38 +83,13 @@ class UnitOfWork:
         await self.session.close()
 ```
 
-**Rule**: Transaction boundaries live in Service/UoW — never in Router or Repository. For distributed transactions, prefer Saga patterns over 2PC.
-
----
-
-## API Versioning
-
-```
-src/api/
-├── v1/
-│   ├── __init__.py    # v1_router aggregation
-│   ├── users.py
-│   └── posts.py
-└── v2/
-    ├── __init__.py
-    └── users.py
-```
-
-```python
-# api/v1/__init__.py
-v1_router = APIRouter()
-v1_router.include_router(users_router, prefix="/users", tags=["Users v1"])
-
-# main.py
-app.include_router(v1_router, prefix="/api/v1")
-app.include_router(v2_router, prefix="/api/v2")
-```
-
-**Rules**: New endpoint → latest version. Non-breaking → same version. Breaking → new version. Shared logic → `service/` or `logic/`. Deprecation → `APIRouter(deprecated=True)`.
+**Rule**: Transaction boundaries in Service/UoW only — never in Router or Repository. For distributed transactions, prefer Saga over 2PC.
 
 ---
 
 ## Testing
+
+Agent defaults to `TestClient`. Use this instead:
 
 ```python
 import pytest
@@ -208,7 +119,7 @@ def _override_auth():
     app.dependency_overrides.clear()
 ```
 
-**Rules**: Prefer real DB (testcontainers) over mocks. Do NOT use `async_asgi_testclient` (unmaintained).
+**Rules**: Prefer real DB (testcontainers) over mocks. Do NOT use `async_asgi_testclient`.
 
 ---
 
@@ -220,38 +131,36 @@ def _override_auth():
 | >1–2s | Consider background queue |
 | >5s | Strongly prefer external worker |
 
+`BackgroundTasks` die with the worker. No retry. No durability. Only for fire-and-forget.
+
+---
+
+## Error Handling — RFC 9457 Exception Hierarchy
+
 ```python
-from fastapi import BackgroundTasks
+class APIError(Exception):
+    def __init__(self, type_: str, title: str, status_code: int = 400, detail: str | None = None):
+        self.type = type_
+        self.title = title
+        self.status_code = status_code
+        self.detail = detail
 
-@router.post("/signup")
-async def signup(data: SignupIn, bg: BackgroundTasks):
-    user = await service.create_user(data)
-    bg.add_task(send_welcome_email, user.email)  # fire-and-forget only
-    return user
+class NotFoundError(APIError):
+    def __init__(self, resource: str, id: str):
+        super().__init__(type_="not-found", title=f"{resource} not found",
+                         status_code=404, detail=f"{resource} with id {id} does not exist")
+
+@app.exception_handler(APIError)
+async def api_error_handler(request: Request, exc: APIError):
+    return JSONResponse(status_code=exc.status_code, content={
+        "type": exc.type, "title": exc.title, "status": exc.status_code,
+        "detail": exc.detail, "instance": str(request.url),
+    })
 ```
-
-**Caveat**: `BackgroundTasks` die with the worker. No retry. No durability.
 
 ---
 
-## Migrations (Alembic)
-
-```bash
-alembic init -t async migrations
-```
-
-```ini
-# alembic.ini
-file_template = %(year)d-%(month).2d-%(day).2d_%(slug)s
-```
-
-**Rules**: Migrations must be static and reversible. Run checks in CI.
-
----
-
-## Pydantic v2 Patterns
-
-### Custom Serializer
+## Pydantic v2 — field_serializer
 
 ```python
 from pydantic import BaseModel, ConfigDict, field_serializer
@@ -283,11 +192,8 @@ async def get_user(id: UUID):
 ```python
 import redis.asyncio as redis
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.redis = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    yield
-    await app.state.redis.close()
+# In lifespan:
+app.state.redis = redis.Redis(host="localhost", port=6379, decode_responses=True)
 ```
 
 **Use cases**: caching (cache-aside + TTL), distributed locks, rate limiting, pub/sub, session storage. Use key namespacing (`app:domain:entity:id`). Monitor with `SLOWLOG GET`.
@@ -324,7 +230,7 @@ async def ws_endpoint(ws: WebSocket, client_id: str):
 
 ---
 
-## Pagination
+## Pagination — Cursor-based
 
 ```python
 @router.get("/items")
@@ -364,32 +270,7 @@ async def download(filename: str):
 
 ---
 
-## Error Handling — Full RFC 9457 Pattern
-
-```python
-class APIError(Exception):
-    def __init__(self, type_: str, title: str, status_code: int = 400, detail: str | None = None):
-        self.type = type_
-        self.title = title
-        self.status_code = status_code
-        self.detail = detail
-
-class NotFoundError(APIError):
-    def __init__(self, resource: str, id: str):
-        super().__init__(type_="not-found", title=f"{resource} not found",
-                         status_code=404, detail=f"{resource} with id {id} does not exist")
-
-@app.exception_handler(APIError)
-async def api_error_handler(request: Request, exc: APIError):
-    return JSONResponse(status_code=exc.status_code, content={
-        "type": exc.type, "title": exc.title, "status": exc.status_code,
-        "detail": exc.detail, "instance": str(request.url),
-    })
-```
-
----
-
-## Logging
+## Logging — structlog + request_id
 
 ```python
 import structlog
@@ -420,3 +301,18 @@ if settings.ENVIRONMENT not in SHOW_DOCS_IN:
 
 app = FastAPI(**app_kwargs)
 ```
+
+---
+
+## Migrations (Alembic)
+
+```bash
+alembic init -t async migrations
+```
+
+```ini
+# alembic.ini
+file_template = %(year)d-%(month).2d-%(day).2d_%(slug)s
+```
+
+**Rules**: Migrations must be static and reversible. Run checks in CI.

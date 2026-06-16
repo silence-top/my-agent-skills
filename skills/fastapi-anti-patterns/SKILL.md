@@ -1,4 +1,15 @@
-# Anti-Pattern Matrix
+---
+name: fastapi-anti-patterns
+description: >-
+  FastAPI code review anti-patterns with severity levels for AI agents.
+  Covers async violations, layer boundary breaks, deprecated APIs, and
+  over-abstraction patterns. Use when reviewing pull requests, auditing
+  agent-generated FastAPI code, or running a pre-commit self-check before
+  outputting code. Works with fastapi-architecture (code rules) and
+  fastapi-project-layout (project structure).
+---
+
+# FastAPI Anti-Patterns — Code Review Guardrails
 
 Check every diff against this table before outputting code. Each entry is a real failure mode observed in agent-generated FastAPI code.
 
@@ -43,6 +54,8 @@ Check every diff against this table before outputting code. Each entry is a real
 | 25 | Pydantic model + `response_model=` | **LOW** | Double construction (usually negligible) | Return `dict`/ORM row, or drop `response_model` |
 
 ## Self-Correction Checklist
+
+Before finalizing any FastAPI code output:
 
 - [ ] No sync libs (`requests`, `time`, `open`, sync DB) inside `async def`?
 - [ ] Transaction boundaries in Service, not Router?
