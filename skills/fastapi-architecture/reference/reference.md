@@ -4,6 +4,118 @@ Patterns that SKILL.md references but does not inline. Read only when you need t
 
 ---
 
+## Cross-Domain Service Call — Correct Pattern
+
+When one domain needs data from another domain, NEVER import the other domain's models or repository. Inject the other domain's Service via DI and call it:
+
+```python
+# domains/identity/dependencies.py
+from typing import Annotated
+from fastapi import Depends
+from src.database import get_db
+from .repository import IdentityRepository
+from .service import IdentityService
+from domains.users.dependencies import get_user_service
+from domains.users.service import UserService
+
+def get_identity_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> IdentityService:
+    repo = IdentityRepository(db)
+    return IdentityService(repo, user_service)
+```
+
+```python
+# domains/identity/service.py
+class IdentityService:
+    def __init__(self, repo: IdentityRepository, user_service: UserService):
+        self.repo = repo
+        self.user_service = user_service  # other domain's Service, not its Repo or Model
+
+    async def get_role_users(self, role_id: int) -> list[UserBriefResponse]:
+        user_ids = await self.repo.get_user_ids_by_role(role_id)  # only gets IDs
+        return await self.user_service.get_brief_by_ids(user_ids)  # Service-to-Service
+```
+
+**Rule**: Domain boundaries are Service-to-Service only. Repository and Model never cross domain lines.
+
+---
+
+## Anti-Corruption Layer — Full Integration Pattern
+
+External systems are accessed through abstract contracts + concrete drivers. Domain code never knows which driver is active.
+
+```python
+# integrations/storage/base.py
+from abc import ABC, abstractmethod
+
+class StorageClient(ABC):
+    @abstractmethod
+    async def upload(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> str:
+        """Returns the public URL or key of the uploaded object."""
+        ...
+
+    @abstractmethod
+    async def delete(self, key: str) -> None: ...
+
+    @abstractmethod
+    async def get_presigned_url(self, key: str, expires_in: int = 3600) -> str: ...
+
+# integrations/storage/minio.py
+from minio import Minio
+from .base import StorageClient
+
+class MinIOClient(StorageClient):
+    def __init__(self, endpoint: str, access_key: str, secret_key: str, bucket: str, secure: bool = True):
+        self.client = Minio(endpoint, access_key, secret_key, secure=secure)
+        self.bucket = bucket
+
+    async def upload(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> str:
+        from io import BytesIO
+        self.client.put_object(self.bucket, key, BytesIO(data), len(data), content_type=content_type)
+        return key
+
+    async def delete(self, key: str) -> None:
+        self.client.remove_object(self.bucket, key)
+
+    async def get_presigned_url(self, key: str, expires_in: int = 3600) -> str:
+        from datetime import timedelta
+        return self.client.presigned_get_object(self.bucket, key, expires=timedelta(seconds=expires_in))
+```
+
+```python
+# integrations/storage/dependencies.py
+from typing import Annotated
+from fastapi import Depends
+from src.core.config import get_settings
+from .base import StorageClient
+from .minio import MinIOClient
+
+def get_storage_client() -> StorageClient:
+    s = get_settings()
+    return MinIOClient(s.MINIO_ENDPOINT, s.MINIO_ACCESS_KEY, s.MINIO_SECRET_KEY, s.MINIO_BUCKET)
+
+StorageDep = Annotated[StorageClient, Depends(get_storage_client)]
+```
+
+```python
+# domains/storage/service.py — Domain uses the abstraction, never the concrete driver
+from integrations.storage.base import StorageClient
+
+class FileService:
+    def __init__(self, repo: FileRepository, storage: StorageClient):
+        self.repo = repo
+        self.storage = storage
+
+    async def upload_file(self, file_in: FileCreate, data: bytes) -> FileResponse:
+        key = await self.storage.upload(f"{file_in.domain}/{file_in.filename}", data)
+        metadata = await self.repo.create(file_in, storage_key=key)
+        return FileResponse.model_validate(metadata)
+```
+
+---
+
 ## Dependency Injection — Full Chain
 
 Agent frequently gets multi-layer DI chains wrong. This is the correct pattern:

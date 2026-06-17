@@ -9,8 +9,8 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 | Skill | 触发场景 | 核心内容 | Token |
 |---|---|---|---|
 | [fastapi-architecture](skills/fastapi-architecture/SKILL.md) | 编写/修改/重构 FastAPI 代码 | 三层架构规则、异步决策表、异常治理、黄金示例代码 | ~1,940 |
-| [fastapi-project-layout](skills/fastapi-project-layout/SKILL.md) | 新建项目、讨论目录结构 | 渐进式目录结构（Small/Medium+）、API 版本边界、反目录模式 | ~1,140 |
-| [fastapi-anti-patterns](skills/fastapi-anti-patterns/SKILL.md) | Code Review、审计代码 | 26 条反模式（CRITICAL/HIGH/MEDIUM/LOW）+ 自检清单 | ~1,490 |
+| [fastapi-project-layout](skills/fastapi-project-layout/SKILL.md) | 新建项目、讨论目录结构 | 渐进式目录结构（Small/Enterprise）、域间 ORM 解耦、API 版本边界、反目录模式 | ~2,050 |
+| [fastapi-anti-patterns](skills/fastapi-anti-patterns/SKILL.md) | Code Review、审计代码 | 28 条反模式（CRITICAL/HIGH/MEDIUM/LOW）+ 自检清单 | ~1,600 |
 
 三个 skill 可独立加载，也可组合使用。`fastapi-architecture` 的 `description` 字段包含对另外两个的交叉引用。
 
@@ -65,9 +65,11 @@ Vue 系列 skill 之间有自动关联：`vue-best-practices` 在检测到 Optio
 #### 场景 2：搭建新项目
 
 `fastapi-project-layout` 会提供：
-- Small（1-5 域）和 Medium+（5+ 域）两套目录结构
-- 何时该从平铺结构升级为按域分子目录（阈值：~10 文件）
-- 不该创建的目录（`utils/`、`constants/`、`cache/`、空目录预建）
+- Small（1-5 域）和 Enterprise（5+ 域）两套目录结构
+- Enterprise 结构包含 `core/`、`common/`、`middleware/`、`integrations/`（ACL 防腐层）、`domains/`、`tasks/` 六大层次
+- 何时该从 Small 升级为 Enterprise（阈值：~10 文件）
+- 域间 ORM 解耦规则（禁止跨域 `relationship`，用逻辑 FK + Service 互调）
+- 不该创建的目录（顶层 `utils/`、跨域 ORM 关联、空目录预建）
 
 #### 场景 3：API 版本迁移
 

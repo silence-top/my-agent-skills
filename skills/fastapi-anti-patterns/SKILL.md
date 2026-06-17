@@ -45,6 +45,8 @@ Check every diff against this table before outputting code. Each entry is a real
 | 16 | `async_asgi_testclient` | **MEDIUM** | Unmaintained, incompatible with newer FastAPI | `httpx.AsyncClient` + `ASGITransport` |
 | 17 | ABC/Interface for mocking | **MEDIUM** | Over-abstraction in a dynamic language | `unittest.mock` or `dependency_overrides` |
 | 18 | Cross-domain deep-path imports | **MEDIUM** | Tight coupling; hard to refactor | `from src.auth import service as auth_service` |
+| 18b | Cross-domain ORM `relationship` | **HIGH** | Circular import; prevents microservice extraction | Logical FK + Service call via DI |
+| 18c | Direct external system call in Service | **MEDIUM** | Hard to swap provider; no testability | `integrations/` ACL with abstract base + concrete driver |
 | 19 | One `BaseSettings` for whole app | **MEDIUM** | Every domain reads every var | One per domain |
 | 20 | Mocking DB in integration tests | **MEDIUM** | Schema drift fires in prod | Real DB (testcontainers) + `dependency_overrides` |
 | 21 | `AsyncClient` created per request | **MEDIUM** | Pool not reused; resource exhaustion | Create in `lifespan`; store on `app.state` |
@@ -62,7 +64,9 @@ Before finalizing any FastAPI code output:
 - [ ] Domain exceptions only in Service; no `HTTPException` there?
 - [ ] ORM models never pass Service boundary?
 - [ ] No `GenericRepository` — concrete repos with business methods?
-- [ ] No ABC written solely for mocking?
+- [ ] No ABC written solely for mocking? (ABC in `integrations/` ACL is OK)
+- [ ] No cross-domain ORM `relationship` — only logical FK + Service call?
+- [ ] No direct external system calls in Service — through `integrations/` ACL?
 - [ ] `Annotated[T, Depends(...)]` for all new DI code?
 - [ ] Pydantic v2 syntax (`ConfigDict`, `field_serializer`) throughout?
 - [ ] No breaking changes to existing API versions?

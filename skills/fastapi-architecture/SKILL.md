@@ -33,6 +33,8 @@ Enforce these rules when creating or modifying FastAPI code. The **red lines are
 5. **Domain exceptions + global handler**: Service throws domain errors; `app.exception_handler` converts to HTTP.
 6. **ORM never leaks past Service**: SQLAlchemy models stop at Service boundary; Pydantic schemas are the public contract.
 7. **One `BaseSettings` per domain**: no god-config class.
+8. **Domain models must stay isolated**: no ORM-level `relationship` across domains; use logical FK + Service call.
+9. **Integrations behind ACL**: external systems accessed via abstract base + concrete driver, never directly.
 
 ## Three-Layer Rules
 
@@ -51,6 +53,24 @@ Enforce these rules when creating or modifying FastAPI code. The **red lines are
 - **Red line**: NO `HTTPException`, NO `Request`/`Response` objects, NO SQLAlchemy model in return types.
 - **Mocking**: use `unittest.mock` or `dependency_overrides`. Never write an ABC just for mocking.
 - **Simple CRUD**: Service is still the correct place even for pass-through — but keep it a one-liner.
+- **Cross-domain calls**: inject other domain's Service via DI. NEVER import another domain's Repository or models directly.
+
+```python
+# ✅ Correct — Service-to-Service call via DI
+class IdentityService:
+    def __init__(self, repo: IdentityRepo, user_service: UserService):
+        self.repo = repo
+        self.user_service = user_service
+
+    async def get_role_users(self, role_id: int) -> list[UserBrief]:
+        user_ids = await self.repo.get_user_ids_by_role(role_id)
+        return await self.user_service.get_brief_by_ids(user_ids)
+```
+
+```python
+# ❌ Disaster — importing another domain's ORM model
+from domains.users.models import User  # circular import, can't split to microservice
+```
 
 ### Repository — "The only I/O gate"
 
@@ -76,6 +96,28 @@ One `pydantic-settings` `BaseSettings` per domain, exposed via `@lru_cache()` ge
 ## Error Handling
 
 Service throws domain exceptions; global handler converts to RFC 9457 JSON. NO `HTTPException` in Service. NO broad `except Exception:` in Router.
+
+## Integrations — Anti-Corruption Layer (ACL)
+
+External systems (storage, message, search, LLM) must be accessed through an abstract base + concrete driver pattern:
+
+```python
+# integrations/storage/base.py
+from abc import ABC, abstractmethod
+
+class StorageClient(ABC):              # ABC is legitimate here — it's a contract
+    @abstractmethod
+    async def upload(self, key: str, data: bytes) -> str: ...
+    @abstractmethod
+    async def delete(self, key: str) -> None: ...
+
+# integrations/storage/minio.py
+class MinIOClient(StorageClient):
+    async def upload(self, key: str, data: bytes) -> str: ...
+    async def delete(self, key: str) -> None: ...
+```
+
+**Rule**: `integrations/` is the ONLY place where ABC is acceptable. Domain code never knows which driver is active.
 
 ## Background Jobs
 
