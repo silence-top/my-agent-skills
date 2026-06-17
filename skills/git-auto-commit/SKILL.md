@@ -1,4 +1,5 @@
 ---
+name: git-auto-commit
 description: Triggered when coding tasks are completed (e.g., bug fixes, component updates, successful tests) or when the user explicitly asks to commit/push code. It audits changes, writes Chinese Conventional Commits logs, and executes git commands automatically.
 globs: *
 alwaysApply: false
