@@ -14,6 +14,12 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 
 三个 skill 可独立加载，也可组合使用。`fastapi-architecture` 的 `description` 字段包含对另外两个的交叉引用。
 
+### 通用工具
+
+| Skill | 触发场景 | 核心内容 | SKILL.md |
+|---|---|---|---|
+| [git-auto-commit](skills/git-auto-commit/SKILL.md) | 编码任务完成、用户说"提交"/"commit"/"push" | 自动安全审计 + 中文 Conventional Commits + git add/commit/push 全自动 | 46 行 |
+
 ### Vue.js 系列
 
 | Skill | 触发场景 | 核心内容 | SKILL.md |
@@ -27,6 +33,8 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 | [vue-testing-best-practices](skills/vue-testing-best-practices/SKILL.md) | Vue 测试 | Vitest + Vue Test Utils 单元测试、Playwright E2E、composable 测试、异步组件测试 | 30 行 |
 
 Vue 系列 skill 之间有自动关联：`vue-best-practices` 在检测到 Options API 项目时自动加载 `vue-options-api-best-practices`，检测到 JSX 时自动加载 `vue-jsx-best-practices`。
+
+`git-auto-commit` 是跨项目通用工具，任何技术栈均可使用。
 
 ## 快速开始
 
@@ -87,6 +95,15 @@ Vue 系列 skill 之间有自动关联：`vue-best-practices` 在检测到 Optio
 - RFC 9457 异常层级
 - `@field_serializer` 用法
 - Redis / WebSocket / 分页 / 文件上传 / SSE / structlog 等带陷阱模式
+
+### Git 自动提交
+
+`git-auto-commit` 在编码任务完成或用户说"提交"/"commit"/"push"时自动触发：
+1. **安全审计**：扫描 diff 中的密钥/Token/硬编码路径，发现则中止并警告
+2. **代码清理**：自动移除 `console.log`、`print()` 等调试残留
+3. **中文 Conventional Commits**：自动生成 `feat(ui): 新增大图金字塔层级平滑放大滑动条` 格式
+4. **自动执行**：`git add .` → `git commit` → `git push`，无需确认
+5. **异常处理**：冲突/鉴权失败时给出明确方案，不盲目重试
 
 ### Vue.js 使用场景
 
