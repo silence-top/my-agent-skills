@@ -19,7 +19,7 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 | Skill | 触发场景 | 核心内容 | SKILL.md |
 |---|---|---|---|
 | [git-auto-commit](skills/git-auto-commit/SKILL.md) | 编码任务完成、用户说"提交"/"commit"/"push" | 自动安全审计 + 中文 Conventional Commits + git add/commit/push 全自动 | 46 行 |
-| [ui-modern-design](skills/ui-modern-design/SKILL.md) | 创建/修改/审查前端 UI 代码 | Token 驱动设计引擎、多主题体系、动效语义、反模板风约束（框架无关） | 150 行 |
+| [ui-modern-design](skills/ui-modern-design/SKILL.md) | 创建/修改/审查前端 UI 代码 | 三层 Token 体系、流体字阶、oklch 色彩推导、响应式系统、组件全状态、动效语义、A11y 刚性约束、反 AI 模板风（框架无关） | 217 行 |
 
 ### Vue.js 系列
 
