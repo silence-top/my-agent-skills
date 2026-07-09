@@ -19,6 +19,7 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 | Skill | 触发场景 | 核心内容 | SKILL.md |
 |---|---|---|---|
 | [git-auto-commit](skills/git-auto-commit/SKILL.md) | 编码任务完成、用户说"提交"/"commit"/"push" | 自动安全审计 + 中文 Conventional Commits + git add/commit/push 全自动 | 46 行 |
+| [ui-modern-design](skills/ui-modern-design/SKILL.md) | 创建/修改/审查前端 UI 代码 | Token 驱动设计引擎、多主题体系、动效语义、反模板风约束（框架无关） | 150 行 |
 
 ### Vue.js 系列
 
@@ -34,7 +35,7 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 
 Vue 系列 skill 之间有自动关联：`vue-best-practices` 在检测到 Options API 项目时自动加载 `vue-options-api-best-practices`，检测到 JSX 时自动加载 `vue-jsx-best-practices`。
 
-`git-auto-commit` 是跨项目通用工具，任何技术栈均可使用。
+`git-auto-commit` 是跨项目通用工具，任何技术栈均可使用。`ui-modern-design` 是框架无关的 UI 设计引擎，适用于 Vue/React/Svelte/原生 CSS 等任何前端技术栈。
 
 ## 快速开始
 
