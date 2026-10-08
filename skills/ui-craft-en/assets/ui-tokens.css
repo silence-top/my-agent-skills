@@ -1,0 +1,235 @@
+/* ============================================================
+ * ui-craft-en · Copy-ready design-token starting point
+ * Usage:
+ *   1. Copy to src/styles/tokens/semantic.css.
+ *   2. Modify the §2 theme palette while retaining semantic names.
+ *   3. Add static -hover / -active values when color-mix or oklch is unsupported.
+ *   4. Components and pages reference only var(--ui-*); no hard-coded values.
+ * ============================================================ */
+
+@layer tokens {
+  /* ---------- §1 Scale system ---------- */
+  :root {
+    /* Spacing: 4px baseline. */
+    --ui-space-0: 0;
+    --ui-space-1: 4px;
+    --ui-space-2: 8px;
+    --ui-space-3: 12px;
+    --ui-space-4: 16px;
+    --ui-space-5: 20px;
+    --ui-space-6: 24px;
+    --ui-space-8: 32px;
+    --ui-space-10: 40px;
+    --ui-space-12: 48px;
+    --ui-space-16: 64px;
+
+    /* Type sizes optimized for Chinese, with body text starting at 14px. */
+    --ui-text-caption: 12px;
+    --ui-text-sm: 13px;
+    --ui-text-base: 14px;
+    --ui-text-md: 16px;
+    --ui-text-lg: 18px;
+    --ui-text-xl: 20px;
+    --ui-text-2xl: 24px;
+    --ui-text-3xl: 30px;
+    --ui-text-4xl: 38px;
+
+    /* Chinese needs looser line height than Latin text. */
+    --ui-leading-tight: 1.25;
+    --ui-leading-snug: 1.4;
+    --ui-leading-normal: 1.6;
+    --ui-leading-loose: 1.75;
+
+    /* Font weights. */
+    --ui-weight-regular: 400;
+    --ui-weight-medium: 500;
+    --ui-weight-semibold: 600;
+    --ui-weight-bold: 700;
+
+    /* Radius. */
+    --ui-radius-xs: 2px;
+    --ui-radius-sm: 4px;
+    --ui-radius-md: 6px;
+    --ui-radius-lg: 8px;
+    --ui-radius-xl: 12px;
+    --ui-radius-2xl: 28px; /* M3 extra-large: top corners of bottom sheets and device frames. */
+    --ui-radius-full: 9999px;
+
+    /* Restrained shadows for operational products. */
+    --ui-shadow-xs: 0 1px 2px rgb(16 24 40 / 0.04);
+    --ui-shadow-sm: 0 1px 3px rgb(16 24 40 / 0.06), 0 1px 2px rgb(16 24 40 / 0.04);
+    --ui-shadow-md: 0 4px 12px rgb(16 24 40 / 0.08);
+    --ui-shadow-lg: 0 12px 32px rgb(16 24 40 / 0.12);
+    --ui-shadow-focus: 0 0 0 3px var(--ui-brand-glow);
+
+    /* Layer order. */
+    --ui-z-base: 0;
+    --ui-z-sticky: 10;
+    --ui-z-dropdown: 1000;
+    --ui-z-overlay: 2000;
+    --ui-z-modal: 2010;
+    --ui-z-drawer: 2020;
+    --ui-z-popover: 2100;
+    --ui-z-toast: 3000;
+    --ui-z-loading: 4000;
+
+    /* Motion. */
+    --ui-duration-instant: 100ms;
+    --ui-duration-fast: 150ms;
+    --ui-duration-normal: 220ms;
+    --ui-duration-slow: 320ms;
+    --ui-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ui-ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+    --ui-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+    /* Latin first with Chinese fallbacks. */
+    --ui-font-sans: 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+      'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Source Han Sans SC',
+      'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+    --ui-font-display: 'Inter Tight', 'Geist', 'SF Pro Display',
+      'PingFang SC', 'HarmonyOS Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif;
+    --ui-font-serif: 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', SimSun, serif;
+    --ui-font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Mono', Consolas,
+      'Sarasa Mono SC', monospace;
+
+    /* Dimension baselines. */
+    --ui-control-height-sm: 28px;
+    --ui-control-height-md: 32px;
+    --ui-control-height-lg: 40px;
+    --ui-row-height-compact: 36px;
+    --ui-row-height-default: 44px;
+    --ui-row-height-loose: 52px;
+  }
+
+  /* ---------- §2 Theme palette: industrial gray, light default ---------- */
+  :root,
+  [data-theme='light'] {
+    --ui-canvas: #f5f6f8;
+    --ui-surface: #ffffff;
+    --ui-surface-alt: #f0f2f5;
+    --ui-surface-raised: #ffffff;
+    --ui-stroke: #e3e6ea;
+    --ui-stroke-strong: #c9ced6;
+
+    --ui-text-primary: #14181f;
+    --ui-text-secondary: #4b5563;  /* 6.99:1 on canvas. */
+    --ui-text-muted: #5b6472;      /* 5.48:1 on canvas / 5.28:1 on surface-alt; do not lighten. */
+    --ui-text-inverse: #ffffff;    /* 5.17:1 on brand. */
+
+    --ui-brand: #2563eb;
+    --ui-brand-subtle: #eaf0fe;
+    --ui-brand-glow: rgb(37 99 235 / 0.28);
+
+    --ui-success: #0b7a53;  /* 5.35:1 on surface. */
+    --ui-warning: #a16207;  /* 4.92:1 on surface. */
+    --ui-danger: #cf2a1e;   /* 4.85:1 on canvas / 5.24:1 on surface. */
+    --ui-info: #2563eb;
+  }
+
+  /* ---------- Dark: cockpit and night operations ---------- */
+  [data-theme='dark'] {
+    --ui-canvas: #0b0e13;
+    --ui-surface: #12161d;
+    --ui-surface-alt: #171c25;
+    --ui-surface-raised: #1b212b;
+    --ui-stroke: #262d38;
+    --ui-stroke-strong: #38414f;
+
+    --ui-text-primary: #e6e9ee;
+    --ui-text-secondary: #a8b0bd;
+    --ui-text-muted: #8b94a3;
+    --ui-text-inverse: #0b0e13;
+
+    --ui-brand: #4c8dff;
+    --ui-brand-subtle: #16243c;
+    --ui-brand-glow: rgb(76 141 255 / 0.35);
+
+    --ui-success: #35c48f;
+    --ui-warning: #e0a441;
+    --ui-danger: #ff6b5e;
+    --ui-info: #4c8dff;
+
+    /* Shadows become ineffective in dark themes; strokes carry boundaries. */
+    --ui-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+    --ui-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.45);
+    --ui-shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+    --ui-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+  }
+
+  /* ---------- §3 Interaction-state derivation ---------- */
+  :root {
+    --ui-brand-hover: color-mix(in oklch, var(--ui-brand) 88%, white);
+    --ui-brand-active: color-mix(in oklch, var(--ui-brand) 88%, black);
+    --ui-disabled-bg: color-mix(in oklch, var(--ui-surface-alt) 70%, var(--ui-canvas));
+    --ui-disabled-text: color-mix(in oklch, var(--ui-text-primary) 35%, var(--ui-canvas));
+
+    --ui-success-subtle: color-mix(in oklch, var(--ui-success) 12%, var(--ui-surface));
+    --ui-warning-subtle: color-mix(in oklch, var(--ui-warning) 14%, var(--ui-surface));
+    --ui-danger-subtle: color-mix(in oklch, var(--ui-danger) 12%, var(--ui-surface));
+    --ui-info-subtle: color-mix(in oklch, var(--ui-info) 12%, var(--ui-surface));
+  }
+
+  /* Decision semantics: roles may combine but never justify a container for every section. */
+  :root {
+    --ui-text-display: 48px;
+    --ui-rhythm-micro: var(--ui-space-1);
+    --ui-rhythm-small: var(--ui-space-2);
+    --ui-rhythm-medium: var(--ui-space-4);
+    --ui-rhythm-large: var(--ui-space-8);
+    --ui-rhythm-hero: var(--ui-space-16);
+    --ui-scale-micro: var(--ui-text-caption);
+    --ui-scale-small: var(--ui-text-sm);
+    --ui-scale-base: var(--ui-text-md);
+    --ui-scale-large: var(--ui-text-2xl);
+    --ui-scale-hero: var(--ui-text-4xl);
+    --ui-scale-display: var(--ui-text-display);
+    --ui-surface-elevated: var(--ui-surface-raised);
+    --ui-surface-floating: var(--ui-surface-raised);
+    --ui-surface-focus: var(--ui-brand-subtle);
+    --ui-surface-highlight: var(--ui-brand);
+    --ui-text-on-highlight: var(--ui-text-inverse);
+    --ui-control-touch: 48px;
+    --ui-border-width: 1px;
+    --ui-outline-width: 2px;
+    --ui-layout-nav: 208px;
+    --ui-layout-context: 288px;
+    --ui-layout-reading: 48rem;
+    --ui-layout-sheet: 560px;
+    --ui-layout-console: 272px;
+    --ui-layout-editor: 320px;
+    --ui-icon-size: 20px;
+  }
+
+  /* ---------- §4 Base binding ---------- */
+  html {
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-base);
+    line-height: var(--ui-leading-normal);
+    -webkit-font-smoothing: antialiased;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ui-canvas);
+    color: var(--ui-text-primary);
+    font-variant-numeric: tabular-nums;
+    line-break: strict;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ui-brand);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

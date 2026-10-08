@@ -1,0 +1,9 @@
+/* Token file: these three color literals are valid. The scanner records them
+   as excluded rather than violations. */
+:root {
+  --ui-canvas: #f5f6f8;
+  --ui-surface: #ffffff;
+  --ui-brand: #2563eb;
+  --ui-space-4: 16px;
+  --ui-font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}

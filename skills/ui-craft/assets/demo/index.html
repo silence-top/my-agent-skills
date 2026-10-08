@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>循证 · 标本接收工作台</title><link rel="stylesheet" href="../ui-tokens.css"><link rel="stylesheet" href="../preview-base.css"><link rel="stylesheet" href="demo.css"></head>
+<body>
+<div class="workspace">
+  <aside class="workspace-nav" aria-label="工作队列">
+    <div class="identity"><span class="eyebrow">TRACE / LOCAL</span><strong>循证工作台</strong><span class="muted">标本流程追溯</span></div>
+    <nav class="flow" aria-label="队列筛选">
+      <button data-filter="all" aria-pressed="true">全部申请 <span data-count="all">3</span></button>
+      <button data-filter="pending" aria-pressed="false">待核对 <span data-count="pending">3</span></button>
+      <button data-filter="done" aria-pressed="false">已确认 <span data-count="done">0</span></button>
+    </nav>
+    <p class="nav-foot">本地模拟工作区<br>无真实患者数据<br>未连接临床系统</p>
+  </aside>
+  <main class="workspace-main">
+    <header class="spread"><div class="flow"><p class="eyebrow">接收环节 / 人工复核</p><h1>把每一次交接，核对清楚。</h1><p class="muted">先看当前标本，再确认来源与流转记录。</p></div><button id="new-record" data-requires-data>新建模拟记录</button></header>
+    <section id="task-region" class="task-region" aria-label="接收工作区">
+      <div class="task-heading spread"><div><p class="eyebrow">当前接收队列</p><h2>待核对 <span data-count="pending">3</span> / <span data-count="all">3</span></h2></div><span id="result-count" aria-live="polite">3 条结果</span></div>
+      <div class="toolbar search-row"><label for="search">查找标本 <input id="search" type="search" placeholder="编号、组织或来源"></label><button id="clear-search">清空</button><button id="export-records" data-requires-data>导出当前结果</button><button id="delete-selected" class="danger" disabled>删除已选</button></div>
+      <div id="state-panel" class="state-box" hidden><h2 id="state-title">正在读取模拟队列</h2><p id="state-description"></p><button id="retry" hidden>重试读取</button><button id="clear-state" hidden>清除筛选</button><button id="finish-loading" hidden>结束加载演示</button></div>
+      <div id="data-region" class="table-scroll"><table><caption class="muted">本地模拟申请 · 选择记录进入核对</caption><thead><tr><th scope="col">选择</th><th scope="col">申请与标本</th><th scope="col" class="source-col">来源 / 接收</th><th scope="col">状态</th><th scope="col">下一步</th></tr></thead><tbody id="record-list"></tbody></table></div>
+      <p id="live-message" role="status" aria-live="polite"></p>
+    </section>
+    <section class="evidence-area" aria-labelledby="evidence-title">
+      <div class="flow"><p class="eyebrow">证据先于建议</p><h2 id="evidence-title">当前对象的核对依据</h2><strong class="mono" data-current="id">SP-240618-031</strong><p data-current="note"></p><button id="open-current" data-requires-data>打开核对详情</button></div>
+      <div class="flow"><h3>AI 辅助 · 模拟规则提示</h3><p>如果固定时间缺失，应先核对交接记录。此提示来自演示规则，不是诊断，也不代表临床审核结论。</p><p class="muted">来源：本页模拟规则 FIX-01；示例日期：2024-06-18。没有模型调用或置信度评分。</p><details><summary>查看规则与人工责任</summary><p>仅提示资料完整性。接收人需核对申请、容器标识和转运时间；确认仅写入当前页面的模拟记录。</p></details></div>
+    </section>
+    <footer data-notes></footer>
+  </main>
+  <aside class="inspector flow" id="inspector"><div class="spread"><h2>流程位置</h2><button id="collapse-context" aria-expanded="true" aria-controls="context-body">收起</button></div><div id="context-body" class="flow"><ol class="timeline"><li>申请已登记 <small>来源资料待复核</small></li><li>标本已转运 <small>本地模拟时间线</small></li><li aria-current="step"><strong>接收核对</strong><small>当前环节</small></li><li>后续处理 <small>本例不执行临床操作</small></li></ol><p class="notice">确认是接收记录，不是医疗诊断。异常必须回到来源核实。</p></div></aside>
+</div>
+<template id="record-template"><tr><td><input type="checkbox"></td><td><strong data-field="id" class="mono"></strong><div data-field="name"></div></td><td class="source-col"><span data-field="source"></span><div data-field="time" class="muted"></div></td><td><span data-field="status" class="status"></span></td><td><button data-action="detail">核对</button></td></tr></template>
+<dialog id="detail-dialog" class="sheet" aria-labelledby="detail-title"><div class="flow"><div class="spread"><h2 id="detail-title">接收核对</h2><button data-close>关闭</button></div><strong data-current="id" class="mono"></strong><p data-current="name"></p><p data-current="note"></p><p>来源：<span data-current="source"></span> · <span data-current="time"></span></p><p class="status" data-current="status"></p><div id="confirmation-area" class="flow"><label><input id="confirm-check" type="checkbox">我已核对本地模拟标识与来源</label><button id="complete-record" class="primary" disabled>确认接收</button></div><p class="muted">仅更新本页模拟数据；刷新恢复初始队列。</p></div></dialog>
+<dialog id="delete-dialog" aria-labelledby="delete-title"><div class="flow"><h2 id="delete-title">删除模拟记录？</h2><p id="delete-description"></p><div class="toolbar"><button data-close autofocus>取消</button><button id="confirm-delete" class="danger">确认删除</button></div></div></dialog>
+<script type="application/json" id="design-brief">{"id":"demo","product":"标本接收与流程追溯的本地模拟工作台","task":"从队列选择标本、核对来源并确认接收","primaryInformation":"待核对队列与当前标本的证据","hierarchy":["接收队列","当前对象证据","流程检查器","低频评审设置"],"composition":"workspace","personalities":["technical","human-centered"],"anchor":{"selector":"#task-region","reason":"队列占据主要面积，状态与下一步形成扫描轴，不以四张 KPI 占首屏"},"surfaces":["canvas","surface","focus","floating"],"density":"表格三档；证据区域保留阅读空间","rhythm":"紧凑队列与宽松证据区形成 Small/Medium/Large 差异","interaction":"选择→核对→确认同步计数；删除需确认；CSV 在本地生成","mobile":{"composition":"task","strategy":"隐藏次要来源列，证据可下钻；流程检查器在窄屏折叠，不把三栏逐块堆满","action":"行内核对后在 Sheet 内确认"},"desktop":"资源队列、主任务区、可收起检查器；Tab 访问全部操作","capabilities":{"states":["normal","loading","empty","error","denied"],"densities":["compact","default","loose"],"motion":true,"sheet":true},"refinement":{"before":"等权 KPI 与通用表格填充首屏","after":"接收队列为主、证据次之、流程检查器从属","reason":"让高频核对任务先可见；人工责任与 AI 模拟边界就近说明"}}</script>
+<script src="../preview-runtime.js"></script><script src="../records-controller.js"></script><script src="demo.js"></script>
+</body></html>
