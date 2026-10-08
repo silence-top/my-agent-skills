@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "f3d21977-a174-4e98-81fe-23f048342a53",
+  "path": "skills/ui-modern-design",
+  "path_key": "skills/ui-modern-design",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

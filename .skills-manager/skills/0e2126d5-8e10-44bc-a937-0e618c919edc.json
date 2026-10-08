@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "0e2126d5-8e10-44bc-a937-0e618c919edc",
+  "path": "skills/vue-best-practices",
+  "path_key": "skills/vue-best-practices",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

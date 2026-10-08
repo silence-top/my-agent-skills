@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "012396e3-2c0e-42f1-988f-1f827c1ed574",
+  "path": "skills/fastapi-anti-patterns",
+  "path_key": "skills/fastapi-anti-patterns",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

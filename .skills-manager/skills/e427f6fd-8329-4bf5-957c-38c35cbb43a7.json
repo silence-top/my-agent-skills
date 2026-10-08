@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "e427f6fd-8329-4bf5-957c-38c35cbb43a7",
+  "path": "skills/fastapi-architecture",
+  "path_key": "skills/fastapi-architecture",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

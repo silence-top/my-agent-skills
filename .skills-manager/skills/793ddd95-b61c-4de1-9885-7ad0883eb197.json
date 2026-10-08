@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "793ddd95-b61c-4de1-9885-7ad0883eb197",
+  "path": "skills/vue-debug-guides",
+  "path_key": "skills/vue-debug-guides",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "229071d3-d0a8-437e-a64c-8af4cfee2af8",
+  "path": "skills/vue-testing-best-practices",
+  "path_key": "skills/vue-testing-best-practices",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

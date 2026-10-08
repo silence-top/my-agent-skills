@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "a8c6e282-12dc-4160-a39e-f9465d80bec2",
+  "path": "skills/fastapi-project-layout",
+  "path_key": "skills/fastapi-project-layout",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}
