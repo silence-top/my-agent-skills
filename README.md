@@ -19,7 +19,9 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 | Skill | 触发场景 | 核心内容 | SKILL.md |
 |---|---|---|---|
 | [git-auto-commit](skills/git-auto-commit/SKILL.md) | 编码任务完成、用户说"提交"/"commit"/"push" | 自动安全审计 + 中文 Conventional Commits + git add/commit/push 全自动 | 46 行 |
-| [ui-modern-design](skills/ui-modern-design/SKILL.md) | 创建/修改/审查前端 UI 代码 | 三层 Token 体系、流体字阶、oklch 色彩推导、响应式系统、组件全状态、动效语义、A11y 刚性约束、反 AI 模板风（框架无关） | 217 行 |
+| [ui-craft](skills/ui-craft/SKILL.md) | 中文环境下创建/修改/审查前端 UI | Visual DNA、四类材质、七大平台、中文排版、设计令牌与六类验收；可独立运行 | 118 行 |
+| [ui-craft-en](skills/ui-craft-en/SKILL.md) | English-language UI design, implementation, and review | 与中文版同构且自包含的英文版，保留中文排版、平台原生感、审计脚本和可交互示例 | 121 行 |
+| [ui-ux-pro-max](skills/ui-ux-pro-max/SKILL.md) | 新产品方向、风格 / 配色 / 字体检索 | 可检索设计智能底座：79 风格、192 产品配色、74 字体组合、119 UX 规则、22 技术栈指南（vendored，上游 MIT） | 214 行 |
 
 ### Vue.js 系列
 
@@ -35,7 +37,9 @@ AI Agent Skill 库，为 Cursor、Windsurf、Cline、Qoder 等智能编码工具
 
 Vue 系列 skill 之间有自动关联：`vue-best-practices` 在检测到 Options API 项目时自动加载 `vue-options-api-best-practices`，检测到 JSX 时自动加载 `vue-jsx-best-practices`。
 
-`git-auto-commit` 是跨项目通用工具，任何技术栈均可使用。`ui-modern-design` 是框架无关的 UI 设计引擎，适用于 Vue/React/Svelte/原生 CSS 等任何前端技术栈。
+`git-auto-commit` 是跨项目通用工具，任何技术栈均可使用。UI 方向由 `ui-ux-pro-max`（可检索的风格 / 配色 / 字体底座）与 `ui-craft` / `ui-craft-en`（审美、材质、平台原生感、实现工程与验收）配套承担：前者给候选方向，后者负责判断与落地；Python 不可用时两个 ui-craft 版本均可独立使用。
+
+`ui-craft` 与 `ui-craft-en` 保持相同的五域目录、文件名、链接和可执行资产。修改任一版本的规则、令牌、扫描器、fixture 或演示时，应同步更新另一版本并分别运行 `assets/tools/scan-project.mjs --self-test`；英文版不跨目录引用中文版资产，因此可单独安装。
 
 ## 快速开始
 

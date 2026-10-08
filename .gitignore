@@ -1,6 +1,12 @@
-.DS_Store
-Thumbs.db
-*.tmp
-.skills-manager.lock
+# Python 编译缓存
 __pycache__/
 *.pyc
+
+# Node
+node_modules/
+
+# 系统与临时文件
+Thumbs.db
+.DS_Store
+*.tmp
+.skills-manager.lock

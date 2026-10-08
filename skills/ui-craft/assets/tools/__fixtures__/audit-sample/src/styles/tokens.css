@@ -1,0 +1,9 @@
+/* 令牌文件：这里的颜色字面量是正常的，扫描器应把它们计入"已排除"而不是问题。
+   共 3 处颜色字面量。 */
+:root {
+  --ui-canvas: #f5f6f8;
+  --ui-surface: #ffffff;
+  --ui-brand: #2563eb;
+  --ui-space-4: 16px;
+  --ui-font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
