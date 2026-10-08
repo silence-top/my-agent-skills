@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "scenario_id": "86b3f716-959b-44a9-b7b6-1d83d341a1ba",
+  "name": "fastapi后端开发",
+  "description": null,
+  "icon": "briefcase",
+  "sort_order": 999
+}

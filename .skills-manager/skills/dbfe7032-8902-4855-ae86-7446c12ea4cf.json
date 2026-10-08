@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "dbfe7032-8902-4855-ae86-7446c12ea4cf",
+  "path": "ui-craft-en",
+  "path_key": "ui-craft-en",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}
