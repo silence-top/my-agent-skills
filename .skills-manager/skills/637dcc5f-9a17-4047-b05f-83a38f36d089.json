@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "637dcc5f-9a17-4047-b05f-83a38f36d089",
+  "path": "ui-workflow-router",
+  "path_key": "ui-workflow-router",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}
